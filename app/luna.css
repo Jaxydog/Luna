@@ -1,0 +1,16 @@
+* {
+	cursor: none;
+	user-select: none;
+
+	background: black;
+}
+
+canvas {
+	position: absolute;
+	image-rendering: pixelated;
+
+	left: 0px;
+	top: 0px;
+
+	background: #30303a;
+}
