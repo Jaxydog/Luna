@@ -1,2 +1,0 @@
-WebAPI.init();
-Process.start();
