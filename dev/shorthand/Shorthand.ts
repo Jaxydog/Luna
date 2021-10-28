@@ -146,7 +146,7 @@ namespace Shorthand {
 
 				if (clumped) {
 					let size = clump_key_size(clumped)
-					output.push(Clumps.get(clumped))
+					output.push(Clumps.get(clumped)!)
 					input.slice(0, size)
 					source.splice(0, size)
 				} else {
@@ -197,12 +197,12 @@ namespace Shorthand {
 						output.push(token)
 					}
 				} else {
-					if (token === "SINGLEQUOTE" && str_type === "s") {
+					if (token === "SINGLEQUOTE" && str_type! === "s") {
 						parsing = false
 						str += "'"
 						output.push(str)
 						str = ""
-					} else if (token === "DOUBLEQUOTE" && str_type === "d") {
+					} else if (token === "DOUBLEQUOTE" && str_type! === "d") {
 						parsing = false
 						str += '"'
 						output.push(str)
@@ -263,3 +263,92 @@ namespace Shorthand {
 		}
 	}
 }
+
+const test = `
+# this is an example file!
+
+# this is a module, basically a class from JavaScript
+mod vec
+	# labels define argument typing within the block
+	lbl p = <'x':'y'>	# can use literals, plus : syntax for multiple values
+	lbl v = <num>		# can regular typings
+
+	# variable assignment is done in this format (type name = assignment)
+	num x = 0	# these are private by default
+	num y = 0
+
+	# typing can include a '?' to become optional
+	# exports that start with a '*' are static exports
+	*exp fn new(x<num?> y<num?>)
+		# the $ character is used to reference the parent, e.g. the 'this' keyword
+		$x ?= x
+		$y ?= y
+
+		# the 'out' keyword is used as a return
+		out $
+	end	# code blocks are ended with the end keyword
+
+	# notice that function arguments don't use commas!
+	exp fn set(p v)
+		# switch statement, basically works the same as 'match' from Rust
+		sw (p)
+			# the 'x' on the left is what the interpreter checks for
+			# everything after the ? is run if the input matches the value
+			'x' ? $x = v end
+			'y' ? $y = v end
+		end
+
+		out $
+	end
+
+	exp fn get(p)
+		sw (p)
+			'x' ? out $x end
+			'y' ? out $y end
+		end
+	end
+
+	# notice the arguments don't need to have specified types
+	# this is due to the labels at the top of the module
+	exp fn add(p v)
+		sw (p)
+			# of course we've got compound operators
+			'x' ? $x += v end
+			'y' ? $y += v end
+		end
+
+		out $
+	end
+
+	exp fn multiply(p v)
+		sw (p)
+			'x' ? $x *= v end
+			'y' ? $y *= v end
+		end
+
+		out $
+	end
+
+	fn magnitude()
+		num x = $x ^ 2
+		num y = $y ^ 2
+		out (x + y) ^ 0.5
+	end
+
+	exp fn normal()
+		num m = $magnitude
+		# inline 'if' statements bay beeeeee
+		if (m == 0) out $ end
+		num x = $x / m
+		num y = $y / m
+		# access properties with a '.' just like in JavaScript
+		out vec.new(x y)
+	end
+
+	exp fn to_string()
+		# template strings! without the dollar sign, it's busy taking the role of 'this'
+		out "vec({$x} {$y})"
+	end
+end`
+
+console.log(Shorthand.Lexer.lex("num test = 5"))
