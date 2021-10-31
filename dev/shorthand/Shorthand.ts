@@ -735,6 +735,24 @@ namespace Shorthand {
 
 			return output
 		}
+		export function resolve_references(input: string[]) {
+			let output: string[] = []
+			let skip = false
+
+			input.forEach((token, idx, arr) => {
+				if (token === "tkn_dollarsign") {
+					let untilnl = arr.slice(idx).indexOf("tkn__newline")
+					let untilcr = arr.slice(idx).indexOf("tkn__creturn")
+					let until = untilnl !== -1 ? untilnl : untilcr
+
+					let ref = arr.slice(idx + 1)
+				} else {
+					output.push(token)
+				}
+			})
+
+			return output
+		}
 		export function remove_newlines(input: string[]) {
 			return input.filter((token) => !token.startsWith("tkn__"))
 		}
