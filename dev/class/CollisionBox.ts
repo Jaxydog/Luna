@@ -63,6 +63,6 @@ class CollisionBox {
 	}
 	/** Returns the collision box as a string */
 	public to_string() {
-		return `CollisionBox(${this.width}, ${this.height})`
+		return JSON.stringify(this)
 	}
 }

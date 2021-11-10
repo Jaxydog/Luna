@@ -55,6 +55,6 @@ abstract class Entity {
 	// functions
 	/** Returns the entity as a string */
 	public to_string() {
-		return `Entity(${this.pos.to_string()}, ${this.collision?.to_string()})`
+		return JSON.stringify(this)
 	}
 }

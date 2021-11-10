@@ -10,17 +10,18 @@
 
 	<link rel="stylesheet" href="luna.css">
 
-	<script src="./source/shorthand/Shorthand.js"></script>
-	<script src="./source/util/LunaUtil.js"></script>
 	<script src="./source/class/Vector.js"></script>
+	<script src="./source/class/NumberRange.js"></script>
 	<script src="./source/class/CollisionBox.js"></script>
 	<script src="./source/class/Entity.js"></script>
-	<script defer src="./source/util/WebAPI.js"></script>
-	<script defer src="./source/util/Process.js"></script>
-	<script defer src="./source/main.js"></script>
+
+	<script src="./source/Internals.js"></script>
+	<script defer src="./source/Engine.js"></script>
+	<script defer src="./source/Display.js"></script>
+	<script defer src="./source/Luna.js"></script>
 </head>
 
-<body>
+<body onload="Luna.start()">
 	<canvas></canvas>
 </body>
 

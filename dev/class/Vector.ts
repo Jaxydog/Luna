@@ -5,8 +5,8 @@
  */
 class Vector {
 	// properties
-	private _x: number
-	private _y: number
+	public x: number
+	public y: number
 
 	// constructor
 	/**
@@ -15,8 +15,8 @@ class Vector {
 	 * @param y Y position
 	 */
 	constructor(x: number, y: number) {
-		this._x = x
-		this._y = y
+		this.x = x
+		this.y = y
 	}
 
 	// static getters / setters
@@ -27,24 +27,6 @@ class Vector {
 	/** A (0, 0) vector */
 	public static get zero() {
 		return new Vector(0, 0)
-	}
-
-	// getters / setters
-	/** X position */
-	public get x() {
-		return this._x
-	}
-	/** Y position */
-	public get y() {
-		return this._y
-	}
-	/** X position */
-	public set x(v: number) {
-		this._x = v
-	}
-	/** Y position */
-	public set y(v: number) {
-		this._y = v
 	}
 
 	// static functions
@@ -366,7 +348,7 @@ class Vector {
 	}
 	/** Returns the vector as a string */
 	public to_string() {
-		return `Vector(${this.x}, ${this.y})`
+		return JSON.stringify(this)
 	}
 
 	/**
