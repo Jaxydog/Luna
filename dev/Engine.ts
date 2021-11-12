@@ -3,29 +3,45 @@ namespace Engine {
 		update(delta: number): Promise<void>
 		remove(): void
 	}
-	export interface QueueItem {
-		entry: Updatable
-		permanent: boolean
-	}
+	export type QueueItem = Internals.QueueMap["engine"]
 
-	let queue: QueueItem[] = []
-
-	export function request(entry: Updatable, permanent = false) {
-		queue.push({ entry, permanent })
+	export function request(entry: QueueItem) {
+		Internals.queue_list.engine.push(entry)
 	}
 	export function request_all(...items: QueueItem[]) {
-		items.forEach((item) => request(item.entry, item.permanent))
+		items.forEach(request)
+	}
+	export function remove(entry: Updatable) {
+		let index = Internals.queue_list.engine.findIndex((item) => item.entry === entry)
+		Internals.queue_list.engine.splice(index, 1)
+	}
+	export function get_queue() {
+		return Array.from(Internals.queue_list.engine)
+	}
+	export function clear() {
+		Internals.queue_list.engine = []
 	}
 	export async function update(delta: number) {
-		queue.forEach(async (item, index) => {
+		Internals.queue_list.engine.forEach(async (item, index) => {
 			await item.entry.update(delta)
-			if (!item.permanent) queue = queue.splice(index, 1)
+
+			switch (item.type) {
+				case "permanent":
+					break
+				case "once": {
+					remove(item.entry)
+					break
+				}
+				case "frames": {
+					if (--(item.lifetime as Internals.LifetimeMap["frames"]).duration <= 0) remove(item.entry)
+					break
+				}
+			}
 		})
 
-		let frame = Internals.frame
 		Internals.trigger("update", {
-			event: "update",
-			payload: { frame, delta },
+			name: "update",
+			payload: { frame: Internals.frame, delta },
 			source: "Luna.Engine.update",
 			timestamp: performance.now(),
 		})

@@ -1,59 +1,24 @@
-/**
- * Base entity class
- * @class Entity
- * @abstract
- */
-abstract class Entity {
-	// properties
-	private _position: Vector
-	private _collision_box?: CollisionBox
+class Entity implements Engine.Updatable, Display.Renderable {
+	public entry: Internals.QueueType<keyof Internals.LifetimeMap, Entity>
 
-	/**
-	 * Creates a new entity
-	 * @param pos Position
-	 * @param collision Collision box
-	 */
-	constructor(pos: Vector, collision: CollisionBox) {
-		this._position = pos
-		this._collision_box = collision
+	constructor(public pos: Vector, lifetime: Internals.Lifetime<keyof Internals.LifetimeMap>, collision: CollisionBox) {
+		this.entry = {
+			entry: this,
+			type: lifetime.type,
+			lifetime: lifetime.lifetime,
+		}
 	}
 
-	// getters / setters
-	/** X position */
-	public get x() {
-		return this._position.x
+	public async update(delta: number) {
+		let t = delta ** (this.pos.x + Math.random() + 2)
 	}
-	/** Y position */
-	public get y() {
-		return this._position.y
+	public async render(delta: number) {
+		let t = delta ** (this.pos.y + Math.random() + 2)
 	}
-	/** Entity position */
-	public get pos() {
-		return this._position
+	public remove() {
+		Engine.remove(this)
+		Display.remove(this)
 	}
-	/** Collision box */
-	public get collision() {
-		return this._collision_box
-	}
-	/** X position */
-	public set x(v: number) {
-		this._position.x = v
-	}
-	/** Y position */
-	public set y(v: number) {
-		this._position.y = v
-	}
-	/** Entity position */
-	public set pos(v: Vector) {
-		this._position = v
-	}
-	/** Collision box */
-	public set collision(v: CollisionBox) {
-		this._collision_box = v
-	}
-
-	// functions
-	/** Returns the entity as a string */
 	public to_string() {
 		return JSON.stringify(this)
 	}
