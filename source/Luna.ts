@@ -1,13 +1,17 @@
 namespace Luna {
+	/** Whether the engine is currently running */
+	export let running = false
+	/** Engine configuration */
 	export const settings = {
 		/** Whether to log current FPS */
 		logfps: true,
+		/** Inverval between fps logs */
+		loginterval: 10,
 		/** Whether to log the average FPS on stop */
 		logavg: true,
 		/** Whether to enable vsync */
 		vsync: false,
 	}
-	export let running = false
 
 	/** Handles internal events */
 	export namespace Event {
@@ -188,6 +192,7 @@ namespace Luna {
 			})
 		}
 	}
+	/** Display internals */
 	export namespace Display {
 		/** Interface that allows for display rendering */
 		export interface Renderable {
@@ -239,6 +244,7 @@ namespace Luna {
 			})
 		}
 	}
+	/** Engine classes */
 	export namespace Class {
 		/** @class Vector2D */
 		export class Vector2D {
@@ -502,7 +508,7 @@ namespace Luna {
 
 		if (settings.logfps) {
 			if (Internals.frame.last !== 0) add_interval(delta)
-			if (Internals.fps.dynamic.length >= 10 && settings.logfps) {
+			if (Internals.fps.dynamic.length >= settings.loginterval && settings.logfps) {
 				print_frames()
 				Internals.fps.dynamic = []
 			}

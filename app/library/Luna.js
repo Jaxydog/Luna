@@ -1,14 +1,18 @@
 var Luna;
 (function (Luna) {
+    /** Whether the engine is currently running */
+    Luna.running = false;
+    /** Engine configuration */
     Luna.settings = {
         /** Whether to log current FPS */
         logfps: true,
+        /** Inverval between fps logs */
+        loginterval: 10,
         /** Whether to log the average FPS on stop */
         logavg: true,
         /** Whether to enable vsync */
         vsync: false,
     };
-    Luna.running = false;
     /** Handles internal events */
     let Event;
     (function (Event) {
@@ -153,6 +157,7 @@ var Luna;
         }
         Engine.update = update;
     })(Engine = Luna.Engine || (Luna.Engine = {}));
+    /** Display internals */
     let Display;
     (function (Display) {
         /** Display render queue */
@@ -197,6 +202,7 @@ var Luna;
         }
         Display.render = render;
     })(Display = Luna.Display || (Luna.Display = {}));
+    /** Engine classes */
     let Class;
     (function (Class) {
         /** @class Vector2D */
@@ -486,7 +492,7 @@ var Luna;
         if (Luna.settings.logfps) {
             if (Internals.frame.last !== 0)
                 add_interval(delta);
-            if (Internals.fps.dynamic.length >= 10 && Luna.settings.logfps) {
+            if (Internals.fps.dynamic.length >= Luna.settings.loginterval && Luna.settings.logfps) {
                 print_frames();
                 Internals.fps.dynamic = [];
             }
