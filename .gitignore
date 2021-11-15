@@ -2,3 +2,6 @@
 /node_modules
 /tsconfig.json
 /app/source/*
+/app/asset/*
+/app/data/*
+/app/library/*
