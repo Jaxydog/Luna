@@ -1,7 +1,7 @@
 /.vscode/
 /node_modules
 /tsconfig.json
-/app/source/*
-/app/asset/*
-/app/data/*
+/app/package/*
 /app/library/*
+/app/asset/*/*
+/app/data/*
