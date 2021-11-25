@@ -2,6 +2,28 @@
 /** Luna engine */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 namespace Luna {
+	/** Defines a class with a unique identifier */
+	export interface Unique {
+		/** Unique identifier */
+		readonly uid: Util.UID
+	}
+	/** Defines a class that can be updated */
+	export interface Updatable {
+		/**
+		 * Updates the object
+		 * @param delta Time since last frame
+		 */
+		update(delta: number): Promise<unknown>
+	}
+	/** Defines a class that can be rendered */
+	export interface Renderable {
+		/**
+		 * Renders the object
+		 * @param delta Time since last frame
+		 */
+		render(delta: number): Promise<unknown>
+	}
+
 	/** Utilities */
 	export namespace Util {
 		/** Unique identifier */
@@ -42,28 +64,6 @@ namespace Luna {
 	}
 	/** Classes */
 	export namespace Class {
-		/** Defines a class with a unique identifier */
-		export interface Unique {
-			/** Unique identifier */
-			readonly uid: Util.UID
-		}
-		/** Defines a class that can be updated */
-		export interface Updatable {
-			/**
-			 * Updates the object
-			 * @param delta Time since last frame
-			 */
-			update(delta: number): Promise<unknown>
-		}
-		/** Defines a class that can be rendered */
-		export interface Renderable {
-			/**
-			 * Renders the object
-			 * @param delta Time since last frame
-			 */
-			render(delta: number): Promise<unknown>
-		}
-
 		/** Maps all component types to their classes */
 		export interface TypeMap {
 			Transform: TransformComponent
@@ -837,9 +837,9 @@ namespace Luna {
 		/** Contains frame information */
 		export const frame = { current: 0, id: 0, last: 0, vsync: false }
 		/** Queue of items to be updated */
-		export const updateQueue = new Class.Queue<Class.Updatable>()
+		export const updateQueue = new Class.Queue<Updatable>()
 		/** Queue of items to be rendered */
-		export const renderQueue = new Class.Queue<Class.Renderable>()
+		export const renderQueue = new Class.Queue<Renderable>()
 		/** Canvas element */
 		export let canvas: HTMLCanvasElement
 		/** Rendering contenxt */
