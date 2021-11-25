@@ -65,6 +65,7 @@ namespace Luna {
 
 			Event.dispatch("error", { name, reason, source, trace })
 
+			Luna.Process.stop(1)
 			throw err
 		}
 	}
@@ -110,12 +111,12 @@ namespace Luna {
 			}
 
 			/**
-			 * Adds or overwrites a item
+			 * Adds or overwrites an item
 			 * @param item Item to add
 			 * @param id Item ID, if overwriting
 			 * @returns Item ID
 			 */
-			public request(item: C, uid = Util.genUID()) {
+			public request(item: C, uid = item instanceof LunaClass ? item.uid : Util.genUID()) {
 				this.__list.set(uid, item)
 				return uid
 			}
@@ -194,12 +195,12 @@ namespace Luna {
 		/** Vector class */
 		export class Vector<D extends number> extends LunaClass {
 			/** Values of the vector */
-			protected _values: Util.FixedArray<D, number>
+			protected _values: number[]
 
 			/** Creates a new vector */
 			public constructor(...values: Util.FixedArray<D, number>) {
 				super()
-				this.values = Array.from(values)
+				this._values = Array.from(values)
 			}
 
 			/** A vector containing only zeroes */
@@ -223,7 +224,7 @@ namespace Luna {
 
 			/** Number of vector dimensions */
 			public get dimensions() {
-				return this._values.length
+				return this._values.length ?? 0
 			}
 			/** Values of the vector */
 			public get values() {
@@ -233,7 +234,7 @@ namespace Luna {
 			public set values(value: number[]) {
 				const arr = value.slice(0, this.dimensions)
 				while (arr.length < this.dimensions) arr.push(0)
-				this._values = arr as Util.FixedArray<D, number>
+				this._values = arr
 			}
 			/** Magnitude of the vector */
 			public get magnitude() {
@@ -253,11 +254,11 @@ namespace Luna {
 
 			/** Converts the vector to a new vector of the given size */
 			public cast(dimensions: number) {
-				return new Vector<typeof dimensions>(...this._values)
+				return new Vector<typeof dimensions>(...(this._values as Util.FixedArray<D, number>))
 			}
 			/** Adds the given numbers to the vector; excess values are discarded */
 			public add(...values: number[]) {
-				this._values.map((n, i) => (n += values[i] ?? 0))
+				this._values = this._values.map((n, i) => (n += values[i] ?? 0))
 				return this
 			}
 			/** Subtracts the given numbers to the vector; excess values are discarded */
@@ -266,7 +267,7 @@ namespace Luna {
 			}
 			/** Multiplies the values of the vector by the given numbers; excess values are discarded */
 			public multiply(...values: number[]) {
-				this._values.map((n, i) => (n *= values[i] ?? 1))
+				this._values = this._values.map((n, i) => (n *= values[i] ?? 1))
 				return this
 			}
 			/** Divides the values of the vector by the given numbers; excess value are discarded */
@@ -275,7 +276,7 @@ namespace Luna {
 			}
 			/** Raises the values of the vector to the given power */
 			public power(power: number) {
-				this._values.map((n) => n ** power)
+				this._values = this._values.map((n) => n ** power)
 				return this
 			}
 			/** Determines the nth root of the vector's values */
@@ -288,11 +289,11 @@ namespace Luna {
 			}
 			/** Checks whether the given vector is equivalent to the vector instance */
 			public equals(vector: Vector<D>) {
-				return this.matches(...vector._values)
+				return this.matches(...(vector._values as Util.FixedArray<D, number>))
 			}
 			/** Creates a copy of the instance */
 			public copy() {
-				return new Vector<D>(...this._values)
+				return new Vector<D>(...(this._values as Util.FixedArray<D, number>))
 			}
 		}
 		/** Rotation class */
@@ -365,7 +366,7 @@ namespace Luna {
 		}
 
 		/** Basic component */
-		export abstract class Component extends LunaClass {
+		export abstract class Component extends LunaClass implements Updatable, Renderable {
 			/** Type of component */
 			public static readonly type: keyof ComponentMap
 
@@ -388,6 +389,18 @@ namespace Luna {
 				return Component.type
 			}
 
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			public async update(delta: number) {
+				/* */
+			}
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			public async render(delta: number) {
+				/* */
+			}
+			/** Checks whether the given game object is the component's parent */
+			public isChildOf(parent: GameObject) {
+				return this._parent === parent
+			}
 			/** Creates a copy of the component */
 			public copy(parent = this._parent): Component {
 				this._parent = parent
@@ -437,9 +450,9 @@ namespace Luna {
 			 * @param fieldB Second field
 			 */
 			protected static collideBB(fieldA: RectangleHitFieldComponent, fieldB: RectangleHitFieldComponent) {
-				const { [0]: widthA, [1]: heightA } = fieldA.size.values
+				const { [0]: widthA, [1]: heightA } = fieldA.size.copy().divide(2, 2).values
 				const { [0]: xPosA, [1]: yPosA } = fieldA._position.values
-				const { [0]: widthB, [1]: heightB } = fieldB.size.values
+				const { [0]: widthB, [1]: heightB } = fieldB.size.copy().divide(2, 2).values
 				const { [0]: xPosB, [1]: yPosB } = fieldB._position.values
 
 				const x = xPosA <= xPosB + widthB && xPosA + widthA >= xPosB
@@ -562,9 +575,13 @@ namespace Luna {
 			public get fieldType() {
 				return "Rectangle" as keyof HitField
 			}
+
+			public async render(delta: number) {
+				Process.context.strokeRect(this._position.values[0], this._position.values[1], this.size.values[0], this.size.values[1])
+			}
 		}
 		/** Texture component */
-		export class TextureComponent extends Component implements Renderable {
+		export class TextureComponent extends Component {
 			public static readonly type: keyof ComponentMap = "Texture"
 
 			protected readonly _required: (keyof ComponentMap)[] = ["Transform"]
@@ -622,7 +639,11 @@ namespace Luna {
 				if (this._image.width === 0 || this._image.height === 0) return
 				if (Camera.active?.shouldCull(new RectangleHitFieldComponent(this._parent, this._renderSize))) return
 
-				Process.context?.drawImage(this._image, this._position.values[0], this._position.values[1], this._renderSize.values[0], this._renderSize.values[1])
+				try {
+					Process.context?.drawImage(this._image, this._position.values[0], this._position.values[1], this._renderSize.values[0], this._renderSize.values[1])
+				} catch {
+					Util.error("Unable to render asset", "Image could not be rendered")
+				}
 			}
 		}
 		/** Animation component */
@@ -691,7 +712,7 @@ namespace Luna {
 		}
 
 		/** Game object class */
-		export class GameObject extends LunaClass {
+		export class GameObject extends LunaClass implements Updatable, Renderable {
 			/** Game object components */
 			private __components: Map<Util.UID, Component>
 
@@ -702,10 +723,15 @@ namespace Luna {
 			public constructor(...components: Component[]) {
 				super()
 				this.__components = new Map()
-				components.map((component) => component.copy(this))
 				components.forEach(this.addComponent)
 			}
 
+			public async update(delta: number) {
+				this.__components.forEach(async (component) => await component.update(delta))
+			}
+			public async render(delta: number) {
+				this.__components.forEach(async (component) => await component.render(delta))
+			}
 			/** Checks for a component */
 			public hasComponent(type: keyof ComponentMap) {
 				return Array.from(this.__components.values()).some((component) => component.type === type)
@@ -717,8 +743,9 @@ namespace Luna {
 			}
 			/** Adds a component to the game object */
 			public addComponent<T extends keyof ComponentMap>(component: ComponentMap[T]) {
-				const temp = component.copy(this)
-				this.__components.set(temp.uid, component)
+				const temp = !component.isChildOf(this) ? component.copy(this) : component
+				this.__components.set(temp.uid, temp)
+				return temp.uid
 			}
 			/** Creates a copy of the game object */
 			public copy() {
@@ -874,8 +901,9 @@ namespace Luna {
 			context = canvas?.getContext("2d")
 			if (!canvas) Util.error("Error initializing", "Unable to load canvas element")
 			if (!context) Util.error("Error initializing", "Unable to fetch rendering context")
+			autoResize()
 			Class.Camera.active = new Class.Camera(new Class.Vector(0, 0), new Class.Rotation(0))
-
+			renderQueue.request(Class.Camera.active)
 			start()
 		}
 		/** Resets internal variables */
@@ -895,7 +923,7 @@ namespace Luna {
 			canvas.setAttribute("width", `${docWidth}px`)
 			canvas.setAttribute("height", `${docHeight}px`)
 
-			Class.Camera.active
+			Class.Camera.active.resize(new Class.Vector(docWidth, docHeight))
 		}
 		/** Requests a new frame */
 		export async function callFrame() {
@@ -929,6 +957,7 @@ namespace Luna {
 		export async function run(time: number) {
 			// stops frames from being processed if the engine is considered stopped
 			if (!running) return
+			autoResize()
 
 			// calculates the time that has passed since the last frame
 			const delta = time - frame.last
@@ -938,6 +967,7 @@ namespace Luna {
 			updateQueue.forEach(async (entry) => await entry.update(delta))
 
 			context.beginPath()
+			context.clearRect(0, 0, canvas.width, canvas.height)
 			renderQueue.forEach(async (entry) => await entry.render(delta))
 			context.closePath()
 
