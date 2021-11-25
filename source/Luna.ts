@@ -2,11 +2,6 @@
 /** Luna engine */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 namespace Luna {
-	/** Defines a class with a unique identifier */
-	export interface Unique {
-		/** Unique identifier */
-		readonly uid: Util.UID
-	}
 	/** Defines a class that can be updated */
 	export interface Updatable {
 		/**
@@ -91,7 +86,7 @@ namespace Luna {
 		/** Luna engine base class */
 		export abstract class LunaClass {
 			/** Unique object identifier */
-			protected readonly _uid = Util.genUID()
+			public readonly uid = Util.genUID()
 
 			/** Returns a string representation of the instance */
 			public toString() {
@@ -370,11 +365,10 @@ namespace Luna {
 		}
 
 		/** Basic component */
-		export abstract class Component implements Unique {
+		export abstract class Component extends LunaClass {
 			/** Type of component */
 			public static readonly type: keyof ComponentMap
 
-			public readonly uid = Util.genUID()
 			/** Required components */
 			protected readonly _required: (keyof ComponentMap)[] = []
 
@@ -383,6 +377,7 @@ namespace Luna {
 			 * @param _parent Parent game object
 			 */
 			public constructor(protected _parent: GameObject) {
+				super()
 				for (const component of this._required) {
 					if (!_parent.hasComponent(component)) Util.error("Missing required component", `Parent object must contain '${component}'`)
 				}
@@ -397,10 +392,6 @@ namespace Luna {
 			public copy(parent = this._parent): Component {
 				this._parent = parent
 				return this
-			}
-			/** Returns a string representation of the component */
-			public toString() {
-				return JSON.stringify(this, null, "\t")
 			}
 		}
 		/** Transform component */
@@ -700,34 +691,38 @@ namespace Luna {
 		}
 
 		/** Game object class */
-		export class GameObject implements Unique {
-			public readonly uid = Util.genUID()
+		export class GameObject extends LunaClass {
 			/** Game object components */
-			private __components: Component[]
+			private __components: Map<Util.UID, Component>
 
 			/**
 			 * Creates a new game object
 			 * @param components Components to add
 			 */
 			public constructor(...components: Component[]) {
-				this.__components = components.map((component) => component.copy(this))
+				super()
+				this.__components = new Map()
+				components.map((component) => component.copy(this))
+				components.forEach(this.addComponent)
 			}
 
 			/** Checks for a component */
 			public hasComponent(type: keyof ComponentMap) {
-				return this.__components.some((component) => component.type === type)
+				return Array.from(this.__components.values()).some((component) => component.type === type)
 			}
-			/** Fetches a component */
-			public getComponent<T extends keyof ComponentMap>(type: T) {
-				return this.__components.find((component) => component.type === type) as ComponentMap[T]
+			/** Fetches a component; if a uid is not provided returns the first instance of the requested component */
+			public getComponent<T extends keyof ComponentMap>(type: T, uid?: Util.UID) {
+				if (uid) return this.__components.get(uid) as ComponentMap[T]
+				else return Array.from(this.__components.values()).find((component) => component.type === type) as ComponentMap[T]
 			}
 			/** Adds a component to the game object */
 			public addComponent<T extends keyof ComponentMap>(component: ComponentMap[T]) {
-				this.__components.push(component.copy(this))
+				const temp = component.copy(this)
+				this.__components.set(temp.uid, component)
 			}
 			/** Creates a copy of the game object */
 			public copy() {
-				return new GameObject(...this.__components)
+				return new GameObject(...this.__components.values())
 			}
 			/** Returns a string representation of the game object */
 			public toString() {
