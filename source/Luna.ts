@@ -65,7 +65,7 @@ namespace Luna {
 	/** Classes */
 	export namespace Class {
 		/** Maps all component types to their classes */
-		export interface TypeMap {
+		export interface ComponentMap {
 			Transform: TransformComponent
 			HitField: HitFieldComponent
 			Texture: TextureComponent
@@ -370,11 +370,11 @@ namespace Luna {
 		/** Basic component */
 		export abstract class Component implements Unique {
 			/** Type of component */
-			public static readonly type: keyof TypeMap
+			public static readonly type: keyof ComponentMap
 
 			public readonly uid = Util.genUID()
 			/** Required components */
-			protected readonly _required: (keyof TypeMap)[] = []
+			protected readonly _required: (keyof ComponentMap)[] = []
 
 			/**
 			 * Creates a component
@@ -403,7 +403,7 @@ namespace Luna {
 		}
 		/** Transform component */
 		export class TransformComponent extends Component {
-			public static readonly type: keyof TypeMap = "Transform"
+			public static readonly type: keyof ComponentMap = "Transform"
 
 			/**
 			 * Creates a new transform component
@@ -426,9 +426,9 @@ namespace Luna {
 		}
 		/** Hit field component */
 		export abstract class HitFieldComponent extends Component {
-			public static readonly type: keyof TypeMap = "HitField"
+			public static readonly type: keyof ComponentMap = "HitField"
 
-			protected readonly _required: (keyof TypeMap)[] = ["Transform"]
+			protected readonly _required: (keyof ComponentMap)[] = ["Transform"]
 
 			/**
 			 * Creates a new hit field component
@@ -572,9 +572,9 @@ namespace Luna {
 		}
 		/** Texture component */
 		export class TextureComponent extends Component implements Renderable {
-			public static readonly type: keyof TypeMap = "Texture"
+			public static readonly type: keyof ComponentMap = "Texture"
 
-			protected readonly _required: (keyof TypeMap)[] = ["Transform"]
+			protected readonly _required: (keyof ComponentMap)[] = ["Transform"]
 
 			/** Texture image */
 			protected _image: HTMLImageElement
@@ -632,7 +632,7 @@ namespace Luna {
 			}
 		}
 		export class AnimationComponent extends TextureComponent {
-			public static readonly type: keyof TypeMap = "Animation"
+			public static readonly type: keyof ComponentMap = "Animation"
 
 			/** Size of one frame */
 			protected _frameSize: Vector
@@ -710,15 +710,15 @@ namespace Luna {
 			}
 
 			/** Checks for a component */
-			public hasComponent(type: keyof TypeMap) {
+			public hasComponent(type: keyof ComponentMap) {
 				return this.__components.some((component) => component.type === type)
 			}
 			/** Fetches a component */
-			public getComponent<T extends keyof TypeMap>(type: T) {
-				return this.__components.find((component) => component.type === type) as TypeMap[T]
+			public getComponent<T extends keyof ComponentMap>(type: T) {
+				return this.__components.find((component) => component.type === type) as ComponentMap[T]
 			}
 			/** Adds a component to the game object */
-			public addComponent<T extends keyof TypeMap>(component: TypeMap[T]) {
+			public addComponent<T extends keyof ComponentMap>(component: ComponentMap[T]) {
 				this.__components.push(component.copy(this))
 			}
 			/** Creates a copy of the game object */
