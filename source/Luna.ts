@@ -65,7 +65,7 @@ namespace Luna {
 
 			Event.dispatch("error", { name, reason, source, trace })
 
-			Luna.Process.stop(1)
+			Process.stop(1)
 			throw err
 		}
 	}
@@ -575,10 +575,6 @@ namespace Luna {
 			public get fieldType() {
 				return "Rectangle" as keyof HitField
 			}
-
-			public async render(delta: number) {
-				Process.context.strokeRect(this._position.values[0], this._position.values[1], this.size.values[0], this.size.values[1])
-			}
 		}
 		/** Texture component */
 		export class TextureComponent extends Component {
@@ -923,7 +919,7 @@ namespace Luna {
 			canvas.setAttribute("width", `${docWidth}px`)
 			canvas.setAttribute("height", `${docHeight}px`)
 
-			Class.Camera.active.resize(new Class.Vector(docWidth, docHeight))
+			Class.Camera.active?.resize(new Class.Vector(docWidth, docHeight))
 		}
 		/** Requests a new frame */
 		export async function callFrame() {
