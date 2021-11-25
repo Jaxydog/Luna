@@ -23,11 +23,22 @@ namespace Luna {
 		 */
 		render(delta: number): Promise<unknown>
 	}
+	/** Defines hit information */
+	export interface HitInformation {
+		hit: boolean
+		top: boolean
+		left: boolean
+		right: boolean
+		bottom: boolean
+		object?: Class.GameObject
+	}
 
 	/** Utilities */
 	export namespace Util {
 		/** Unique identifier */
 		export type UID = `${number}-${number}-${number}-${number}`
+		/** Defines an array with a fixed size using some TypeScript wizardry */
+		export type FixedArray<N extends number, T> = N extends 0 ? never[] : { 0: T; length: N } & ReadonlyArray<T>
 
 		/** Generates a new unique identifier using `crypto` */
 		export function genUID(): UID {
@@ -71,23 +82,24 @@ namespace Luna {
 			Texture: TextureComponent
 			Animation: AnimationComponent
 		}
-		/** Map of hit field types and their properties */
-		export interface HitField {
-			Circle: [number]
-			Rectangle: [Vector]
-		}
-		/** Defines hit information */
-		export interface HitInformation {
-			hit: boolean
-			top: boolean
-			left: boolean
-			right: boolean
-			bottom: boolean
-			object?: GameObject
+		/** List of all valid hit field types */
+		export enum HitField {
+			Circle,
+			Rectangle,
 		}
 
+		/** Luna engine base class */
+		export abstract class LunaClass {
+			/** Unique object identifier */
+			protected readonly _uid = Util.genUID()
+
+			/** Returns a string representation of the instance */
+			public toString() {
+				return JSON.stringify(this, null, "\t")
+			}
+		}
 		/** Queue class */
-		export class Queue<C> {
+		export class Queue<C> extends LunaClass {
 			/** Contents of the queue */
 			private __list: Map<Util.UID, C> = new Map()
 
@@ -157,13 +169,9 @@ namespace Luna {
 			public forEach(callback: (entry: C, uid: Util.UID) => unknown) {
 				this.__list.forEach(callback)
 			}
-			/** Converts the queue to a string */
-			public toString() {
-				return JSON.stringify(this, null, "\t")
-			}
 		}
 		/** Interval class */
-		export class Interval {
+		export class Interval extends LunaClass {
 			/** Whether the iterator met the target value */
 			public active = false
 			/** Current value */
@@ -173,7 +181,9 @@ namespace Luna {
 			 * Creates a new interval
 			 * @param target Target number
 			 */
-			public constructor(public target: number) {}
+			public constructor(public target: number) {
+				super()
+			}
 
 			/**
 			 * Updates the interval
@@ -181,121 +191,113 @@ namespace Luna {
 			 */
 			public update(val: number) {
 				this.__current += val
-
-				// reset activity
 				if (this.active) this.active = false
 				if (this.__current >= this.target) this.active = true
-				// keep current value below target value, prevents numbers from getting WAY too big
 				while (this.__current >= this.target) this.__current -= this.target
-			}
-			/** Converts the interval to a string */
-			public toString() {
-				return JSON.stringify(this, null, "\t")
 			}
 		}
 		/** Vector class */
-		export class Vector {
-			/**
-			 * Creates a new vector
-			 * @param x X value
-			 * @param y Y value
-			 */
-			public constructor(public x = 0, public y = 0) {}
+		export class Vector<D extends number> extends LunaClass {
+			/** Values of the vector */
+			protected _values: Util.FixedArray<D, number>
 
-			/** Calculates the midpoint of the given vectors */
-			public static midpoint(...values: Vector[]) {
-				const accumulator = new Vector()
-				values.forEach((vector) => accumulator.add(vector.x, vector.y))
-				return accumulator.divide(values.length, values.length)
+			/** Creates a new vector */
+			public constructor(...values: Util.FixedArray<D, number>) {
+				super()
+				this.values = Array.from(values)
 			}
 
-			/** A (0, 0) vector */
-			public static get zero() {
-				return new Vector(0, 0)
+			/** A vector containing only zeroes */
+			public static zero(dimensions: number) {
+				return new Vector<typeof dimensions>(0)
 			}
-			/** A (1, 1) vector */
-			public static get unit() {
-				return new Vector(1, 1)
+			/** A vector containing only ones */
+			public static unit(dimensions: number) {
+				const vec = new Vector<typeof dimensions>(1)
+				vec._values.map(() => 1)
+				return vec
+			}
+			/** Calculates the distance between two vectors */
+			public static distance<D extends number>(vecA: Vector<D>, vecB: Vector<D>) {
+				const temp = vecB
+					.copy()
+					.subtract(...vecA.values)
+					.power(2)
+				return Math.sqrt(temp.values.reduce((p, c) => p + c))
 			}
 
-			/** Finds the magnitude of the vector */
+			/** Number of vector dimensions */
+			public get dimensions() {
+				return this._values.length
+			}
+			/** Values of the vector */
+			public get values() {
+				return Array.from(this._values)
+			}
+			/** Values of the vector */
+			public set values(value: number[]) {
+				const arr = value.slice(0, this.dimensions)
+				while (arr.length < this.dimensions) arr.push(0)
+				this._values = arr as Util.FixedArray<D, number>
+			}
+			/** Magnitude of the vector */
 			public get magnitude() {
-				const { x, y } = this.copy().power(2, 2)
-				return Math.sqrt(x + y)
+				const n = this.copy().power(2).values
+				return Math.sqrt(n.reduce((p, c) => p + c))
+			}
+			/** Normal of the vector */
+			public get normal() {
+				const m = this.magnitude
+				if (m === 0) return this
+				else {
+					const temp = this.copy()
+					temp._values.map((n) => n / m)
+					return temp
+				}
 			}
 
-			/** Creates a copy of the vector */
-			public copy() {
-				return new Vector(this.x, this.y)
+			/** Converts the vector to a new vector of the given size */
+			public cast(dimensions: number) {
+				return new Vector<typeof dimensions>(...this._values)
 			}
-			/** Inverts the vector */
-			public inverse() {
-				this.x *= -1
-				this.y *= -1
+			/** Adds the given numbers to the vector; excess values are discarded */
+			public add(...values: number[]) {
+				this._values.map((n, i) => (n += values[i] ?? 0))
+				return this
 			}
-			/** Sets both values to their reciprocal */
-			public reciprocal() {
-				this.x = 1 / this.x
-				this.y = 1 / this.y
+			/** Subtracts the given numbers to the vector; excess values are discarded */
+			public subtract(...values: number[]) {
+				return this.add(...values.map((n) => -n))
 			}
-			/** Normalizes the vector */
-			public normalize() {
-				const magnitude = this.magnitude
-				if (magnitude === 0) return this
-				return this.divide(magnitude, magnitude)
+			/** Multiplies the values of the vector by the given numbers; excess values are discarded */
+			public multiply(...values: number[]) {
+				this._values.map((n, i) => (n *= values[i] ?? 1))
+				return this
 			}
-			/** Calculates the distance to the given vector */
-			public distanceTo(vec: Vector) {
-				const temp = vec.copy().subtract(this.x, this.y).power(2, 2)
-				return Math.sqrt(temp.x + temp.y)
+			/** Divides the values of the vector by the given numbers; excess value are discarded */
+			public divide(...values: number[]) {
+				return this.multiply(...values.map((n) => 1 / n))
 			}
-			/** Calculates the dot product with the given vector */
-			public dotProduct(vec: Vector) {
-				return this.x * vec.x + (this.y + vec.y)
+			/** Raises the values of the vector to the given power */
+			public power(power: number) {
+				this._values.map((n) => n ** power)
+				return this
+			}
+			/** Determines the nth root of the vector's values */
+			public root(root: number) {
+				return this.power(1 / root)
 			}
 			/** Checks whether the vector's values match the input */
-			public matches(x: number, y: number) {
-				return this.x === x && this.y === y
+			public matches(...values: Util.FixedArray<D, number>) {
+				return this._values.every((n, i) => n === values[i])
 			}
-			/** Converts the vector to a string */
-			public toString() {
-				return JSON.stringify(this, null, "\t")
+			/** Checks whether the given vector is equivalent to the vector instance */
+			public equals(vector: Vector<D>) {
+				return this.matches(...vector._values)
 			}
-			/** Adds to the vector's values */
-			public add(x = 0, y = 0) {
-				this.x += x
-				this.y += y
-				return this
-			}
-			/** Subtracts from the vector's values */
-			public subtract(x = 0, y = 0) {
-				return this.add(-x, -y)
-			}
-			/** Multiplies the vector's values */
-			public multiply(x = 1, y = 1) {
-				this.x *= x
-				this.y *= y
-				return this
-			}
-			/** Divides the vector's values */
-			public divide(x = 1, y = 1) {
-				return this.multiply(1 / x, 1 / y)
-			}
-			/** Raises the vector's values to a power */
-			public power(x = 1, y = 1) {
-				this.x **= x
-				this.y **= y
-				return this
-			}
-			/** Finds the root of the vector's values */
-			public root(x = 1, y = 1) {
-				return this.power(1 / x, 1 / y)
-			}
-			/** Sets the vector's values */
-			public set(x = this.x, y = this.y) {
-				this.x = x
-				this.y = y
-				return this
+			/** Creates a copy of the instance */
+			public copy() {
+				return new Vector<D>(...this._values)
 			}
 		}
 		/** Rotation class */
@@ -334,11 +336,11 @@ namespace Luna {
 			 * @param origin Origin point
 			 * @param angle Angle in radians
 			 */
-			public static rotatePoint(point: Vector, origin: Vector, angle: number) {
-				const offsetX = point.x - origin.x
-				const offsetY = point.y - origin.y
-				const pointX = offsetX * Math.cos(angle) - offsetY * Math.sin(angle) + origin.x
-				const pointY = offsetX * Math.sin(angle) - offsetY * Math.cos(angle) + origin.y
+			public static rotatePoint(point: Vector<2>, origin: Vector<2>, angle: number) {
+				const offsetX = point.values[0] - origin.values[0]
+				const offsetY = point.values[1] - origin.values[1]
+				const pointX = offsetX * Math.cos(angle) - offsetY * Math.sin(angle) + origin.values[0]
+				const pointY = offsetX * Math.sin(angle) - offsetY * Math.cos(angle) + origin.values[1]
 				return new Vector(pointX, pointY)
 			}
 
@@ -411,7 +413,7 @@ namespace Luna {
 			 * @param position The component's position property
 			 * @param rotation The component's rotation property
 			 */
-			public constructor(parent: GameObject, public position: Vector, public rotation: Rotation) {
+			public constructor(parent: GameObject, public position: Vector<2>, public rotation: Rotation) {
 				super(parent)
 			}
 
@@ -444,10 +446,10 @@ namespace Luna {
 			 * @param fieldB Second field
 			 */
 			protected static collideBB(fieldA: RectangleHitFieldComponent, fieldB: RectangleHitFieldComponent) {
-				const { x: widthA, y: heightA } = fieldA.size
-				const { x: xPosA, y: yPosA } = fieldA._position
-				const { x: widthB, y: heightB } = fieldB.size
-				const { x: xPosB, y: yPosB } = fieldB._position
+				const { [0]: widthA, [1]: heightA } = fieldA.size.values
+				const { [0]: xPosA, [1]: yPosA } = fieldA._position.values
+				const { [0]: widthB, [1]: heightB } = fieldB.size.values
+				const { [0]: xPosB, [1]: yPosB } = fieldB._position.values
 
 				const x = xPosA <= xPosB + widthB && xPosA + widthA >= xPosB
 				const y = yPosA <= yPosB + heightB && yPosB + heightA >= yPosB
@@ -469,7 +471,7 @@ namespace Luna {
 			protected static collideBC(fieldA: CircleHitFieldComponent, fieldB: CircleHitFieldComponent) {
 				const positionA = fieldA._position
 				const positionB = fieldB._position
-				const hit = positionA.distanceTo(positionB) <= fieldA.radius + fieldB.radius
+				const hit = Vector.distance(positionA, positionB) <= fieldA.radius + fieldB.radius
 				return { hit, object: hit ? fieldB._parent : undefined } as HitInformation
 			}
 			/**
@@ -478,12 +480,12 @@ namespace Luna {
 			 * @param fieldB Circular field
 			 */
 			protected static collideBBToBC(fieldA: RectangleHitFieldComponent, fieldB: CircleHitFieldComponent) {
-				const { x: width, y: height } = fieldA.size
-				const { x: xPosA, y: yPosA } = fieldA._position
-				const { x: xPosB, y: yPosB } = fieldB._position
+				const { [0]: width, [1]: height } = fieldA.size.values
+				const { [0]: xPosA, [1]: yPosA } = fieldA._position.values
+				const { [0]: xPosB, [1]: yPosB } = fieldB._position.values
 				const x = Math.max(xPosA, Math.min(xPosB, xPosA + width))
 				const y = Math.max(yPosA, Math.min(yPosB, yPosA + height))
-				const hit = new Vector(x, y).distanceTo(new Vector(xPosB, yPosB)) < fieldB.radius
+				const hit = Vector.distance(new Vector(x, y), new Vector(xPosB, yPosB)) < fieldB.radius
 
 				return {
 					hit,
@@ -562,7 +564,7 @@ namespace Luna {
 			 * @param parent Parent game object
 			 * @param size Size of the field
 			 */
-			public constructor(parent: GameObject, public size: Vector) {
+			public constructor(parent: GameObject, public size: Vector<2>) {
 				super(parent)
 			}
 
@@ -579,7 +581,7 @@ namespace Luna {
 			/** Texture image */
 			protected _image: HTMLImageElement
 			/** Render size */
-			protected _renderSize: Vector
+			protected _renderSize: Vector<2>
 
 			/**
 			 * Creates a new texture component
@@ -587,9 +589,10 @@ namespace Luna {
 			 * @param _source Image source
 			 * @param _size Image size
 			 */
-			public constructor(parent: GameObject, protected _source: string, protected _size: Vector) {
+			public constructor(parent: GameObject, protected _source: string, protected _size: Vector<2>) {
 				super(parent)
-				this._image = new Image(this._size.x, this._size.y)
+				this._size.values = this._size.values.map((n) => Math.floor(n))
+				this._image = new Image(this._size.values[0], this._size.values[1])
 				this._image.src = this._source
 				this._renderSize = this._size
 			}
@@ -602,8 +605,8 @@ namespace Luna {
 				return this._renderSize.copy()
 			}
 			/** Image rendering size */
-			public set size(value: Vector) {
-				this._renderSize.set(value.x, value.y)
+			public set size(value: Vector<2>) {
+				this._renderSize.values = value.values.map((n) => Math.floor(n))
 			}
 			/** Component parent's position property */
 			protected get _position() {
@@ -624,18 +627,19 @@ namespace Luna {
 			}
 			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			public async render(delta: number) {
-				if (this._renderSize.x === 0 || this._renderSize.y === 0) return
+				if (this._renderSize.values[0] === 0 || this._renderSize.values[1] === 0) return
 				if (this._image.width === 0 || this._image.height === 0) return
 				if (Camera.active?.shouldCull(new RectangleHitFieldComponent(this._parent, this._renderSize))) return
 
-				Process.context?.drawImage(this._image, this._position.x, this._position.y, this._renderSize.x, this._renderSize.y)
+				Process.context?.drawImage(this._image, this._position.values[0], this._position.values[1], this._renderSize.values[0], this._renderSize.values[1])
 			}
 		}
+		/** Animation component */
 		export class AnimationComponent extends TextureComponent {
 			public static readonly type: keyof ComponentMap = "Animation"
 
 			/** Size of one frame */
-			protected _frameSize: Vector
+			protected _frameSize: Vector<2>
 			/** Determines when to change frame */
 			protected _frameUpdate: Interval
 			/** Current frame */
@@ -648,10 +652,10 @@ namespace Luna {
 			 * @param size Image size
 			 * @param frameCount Number of frames
 			 */
-			public constructor(parent: GameObject, source: string, size: Vector, protected _frameCount: number) {
+			public constructor(parent: GameObject, source: string, size: Vector<2>, protected _frameCount: number) {
 				super(parent, source, size)
 				this._frameSize = size.copy().divide(1, _frameCount)
-				this._frameSize.x = Math.floor(this._frameSize.x)
+				this._frameSize.values = this._frameSize.values.map((n) => Math.floor(n))
 				this._renderSize = this._frameSize
 			}
 
@@ -669,20 +673,20 @@ namespace Luna {
 			public async render(delta: number) {
 				this._updateFrame(delta)
 
-				if (this._renderSize.x === 0 || this._renderSize.y === 0) return
-				if (this._frameSize.x === 0 || this._frameSize.y === 0) return
+				if (this._renderSize.values[0] === 0 || this._renderSize.values[1] === 0) return
+				if (this._frameSize.values[0] === 0 || this._frameSize.values[1] === 0) return
 				if (Camera.active?.shouldCull(new RectangleHitFieldComponent(this._parent, this._renderSize))) return
 
 				Process.context?.drawImage(
 					this._image,
-					this._frameSize.x * this._currentFrame,
+					this._frameSize.values[0] * this._currentFrame,
 					0,
-					this._frameSize.x,
-					this._frameSize.y,
-					this._position.x,
-					this._position.y,
-					this._renderSize.x,
-					this._renderSize.y
+					this._frameSize.values[0],
+					this._frameSize.values[1],
+					this._position.values[0],
+					this._position.values[1],
+					this._renderSize.values[0],
+					this._renderSize.values[1]
 				)
 			}
 			/** Checks for a frame change */
@@ -737,14 +741,16 @@ namespace Luna {
 
 			public readonly uid = Util.genUID()
 			/** Camera offset */
-			protected _offset = Vector.zero
+			protected _offset = Vector.zero(2)
+			/** Camera zoom */
+			protected _zoom = Vector.unit(2)
 
 			/**
 			 * Creates a new camera
 			 * @param position Camera root position
 			 * @param offset Camera position offset
 			 */
-			public constructor(position: Vector, rotation: Rotation) {
+			public constructor(position: Vector<2>, rotation: Rotation) {
 				super()
 				this.addComponent(new TransformComponent(this, position, rotation))
 				this.addComponent(new RectangleHitFieldComponent(this, new Vector(Process.canvas.width, Process.canvas.height)))
@@ -762,6 +768,23 @@ namespace Luna {
 			/** Checks whether a body should be rendered */
 			public shouldCull(field: HitFieldComponent) {
 				return !this._hitField.checkCollision(field).hit
+			}
+			/** Resizes the camera view */
+			public resize(vector: Vector<2>) {
+				// eslint-disable-next-line @typescript-eslint/no-extra-semi
+				;(this.getComponent("HitField") as RectangleHitFieldComponent).size = vector
+			}
+			/** Sets the camera's zoom */
+			public zoom(x = 1, y = 1) {
+				this._zoom.multiply(x, y)
+			}
+			/** Sets the camera's position */
+			public focusTo(x = this._transform.position.values[0], y = this._transform.position.values[1]) {
+				this._offset.values = [x, y]
+			}
+			/** Rotates the camera */
+			public rotate(degrees = 0) {
+				this._transform.rotation.degrees += degrees
 			}
 		}
 	}
@@ -856,7 +879,7 @@ namespace Luna {
 			context = canvas?.getContext("2d")
 			if (!canvas) Util.error("Error initializing", "Unable to load canvas element")
 			if (!context) Util.error("Error initializing", "Unable to fetch rendering context")
-			Class.Camera.active = new Class.Camera(Class.Vector.zero, new Class.Rotation(0))
+			Class.Camera.active = new Class.Camera(new Class.Vector(0, 0), new Class.Rotation(0))
 
 			start()
 		}
@@ -867,6 +890,17 @@ namespace Luna {
 			frame.last = 0
 			frame.vsync = false
 			running = false
+		}
+		/** Automatically resize the canvas */
+		export function autoResize() {
+			const { clientWidth: docWidth, clientHeight: docHeight } = document.documentElement
+
+			if (canvas.width === docWidth && canvas.height === docHeight) return
+
+			canvas.setAttribute("width", `${docWidth}px`)
+			canvas.setAttribute("height", `${docHeight}px`)
+
+			Class.Camera.active
 		}
 		/** Requests a new frame */
 		export async function callFrame() {
