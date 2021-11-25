@@ -89,7 +89,7 @@ namespace Luna {
 		/** Queue class */
 		export class Queue<C> {
 			/** Contents of the queue */
-			private list: Map<Util.UID, C> = new Map()
+			private __list: Map<Util.UID, C> = new Map()
 
 			/**
 			 * Creates a queue from the given items
@@ -109,7 +109,7 @@ namespace Luna {
 			 * @returns Item ID
 			 */
 			public request(item: C, uid = Util.genUID()) {
-				this.list.set(uid, item)
+				this.__list.set(uid, item)
 				return uid
 			}
 			/**
@@ -118,18 +118,18 @@ namespace Luna {
 			 * @returns Whether the item could be removed
 			 */
 			public remove(uid: Util.UID) {
-				return this.list.delete(uid)
+				return this.__list.delete(uid)
 			}
 			/** Clears the queue */
 			public clear() {
-				this.list.clear()
+				this.__list.clear()
 			}
 			/**
 			 * Checks for the given ID within the queue
 			 * @param id Item ID
 			 */
 			public hasUID(uid: Util.UID) {
-				return this.list.has(uid)
+				return this.__list.has(uid)
 			}
 			/**
 			 * Fetches the ID of an item from the queue
@@ -137,7 +137,7 @@ namespace Luna {
 			 */
 			public getUID(item: C) {
 				const index = this.array().indexOf(item)
-				return Array.from(this.list.keys())[index]
+				return Array.from(this.__list.keys())[index]
 			}
 			/**
 			 * Checks for the given item within the queue
@@ -148,14 +148,14 @@ namespace Luna {
 			}
 			/** Retrieves the queue contents */
 			public array() {
-				return Array.from(this.list.values())
+				return Array.from(this.__list.values())
 			}
 			/**
 			 * Runs the callback function once for each item in the queue
 			 * @param callback Callback function
 			 */
 			public forEach(callback: (entry: C, uid: Util.UID) => unknown) {
-				this.list.forEach(callback)
+				this.__list.forEach(callback)
 			}
 			/** Converts the queue to a string */
 			public toString() {
@@ -164,29 +164,29 @@ namespace Luna {
 		}
 		/** Interval class */
 		export class Interval {
-			/** Current value */
-			public current = 0
 			/** Whether the iterator met the target value */
 			public active = false
+			/** Current value */
+			private __current = 0
 
 			/**
 			 * Creates a new interval
 			 * @param target Target number
 			 */
-			constructor(public target: number) {}
+			public constructor(public target: number) {}
 
 			/**
 			 * Updates the interval
 			 * @param val Value to add
 			 */
 			public update(val: number) {
-				this.current += val
+				this.__current += val
 
 				// reset activity
 				if (this.active) this.active = false
-				if (this.current >= this.target) this.active = true
+				if (this.__current >= this.target) this.active = true
 				// keep current value below target value, prevents numbers from getting WAY too big
-				while (this.current >= this.target) this.current -= this.target
+				while (this.__current >= this.target) this.__current -= this.target
 			}
 			/** Converts the interval to a string */
 			public toString() {
@@ -202,6 +202,13 @@ namespace Luna {
 			 */
 			public constructor(public x = 0, public y = 0) {}
 
+			/** Calculates the midpoint of the given vectors */
+			public static midpoint(...values: Vector[]) {
+				const accumulator = new Vector()
+				values.forEach((vector) => accumulator.add(vector.x, vector.y))
+				return accumulator.divide(values.length, values.length)
+			}
+
 			/** A (0, 0) vector */
 			public static get zero() {
 				return new Vector(0, 0)
@@ -211,11 +218,10 @@ namespace Luna {
 				return new Vector(1, 1)
 			}
 
-			/** Calculates the midpoint of the given vectors */
-			public static midpoint(...values: Vector[]) {
-				const accumulator = new Vector()
-				values.forEach((vector) => accumulator.add(vector.x, vector.y))
-				return accumulator.divide(values.length, values.length)
+			/** Finds the magnitude of the vector */
+			public get magnitude() {
+				const { x, y } = this.copy().power(2, 2)
+				return Math.sqrt(x + y)
 			}
 
 			/** Creates a copy of the vector */
@@ -232,14 +238,9 @@ namespace Luna {
 				this.x = 1 / this.x
 				this.y = 1 / this.y
 			}
-			/** Finds the magnitude of the vector */
-			public magnitude() {
-				const { x, y } = this.copy().power(2, 2)
-				return Math.sqrt(x + y)
-			}
 			/** Normalizes the vector */
 			public normalize() {
-				const magnitude = this.magnitude()
+				const magnitude = this.magnitude
 				if (magnitude === 0) return this
 				return this.divide(magnitude, magnitude)
 			}
@@ -252,11 +253,14 @@ namespace Luna {
 			public dotProduct(vec: Vector) {
 				return this.x * vec.x + (this.y + vec.y)
 			}
+			/** Checks whether the vector's values match the input */
+			public matches(x: number, y: number) {
+				return this.x === x && this.y === y
+			}
 			/** Converts the vector to a string */
 			public toString() {
 				return JSON.stringify(this, null, "\t")
 			}
-
 			/** Adds to the vector's values */
 			public add(x = 0, y = 0) {
 				this.x += x
@@ -293,10 +297,6 @@ namespace Luna {
 				this.y = y
 				return this
 			}
-			/** Checks whether the vector's values match the input */
-			public matches(x: number, y: number) {
-				return this.x === x && this.y === y
-			}
 		}
 		/** Rotation class */
 		export class Rotation {
@@ -310,14 +310,14 @@ namespace Luna {
 			public static readonly maxRad = Rotation.toRadians(Rotation.maxDeg)
 
 			/** Object rotation, stored as degrees for better accuracy */
-			private rotation: number
+			private __rotation: number
 
 			/**
 			 * Creates a new rotation instance
 			 * @param value Rotation in degrees
 			 */
 			public constructor(value = 0) {
-				this.rotation = value
+				this.__rotation = value
 			}
 
 			/** Converts radians to degrees */
@@ -344,17 +344,17 @@ namespace Luna {
 
 			/** Value of the rotation in degrees */
 			public get degrees() {
-				return this.rotation
+				return this.__rotation
 			}
 			/** Value of the rotation in degrees */
 			public set degrees(val: number) {
 				while (val >= Rotation.maxDeg) val -= Rotation.maxDeg
 				while (val < Rotation.minDeg) val += Rotation.maxDeg
-				this.rotation = val
+				this.__rotation = val
 			}
 			/** Value of the rotation in radians */
 			public get radians() {
-				return Rotation.toRadians(this.rotation)
+				return Rotation.toRadians(this.__rotation)
 			}
 			/** Value of the rotation in radians */
 			public set radians(val: number) {
@@ -373,7 +373,6 @@ namespace Luna {
 			public static readonly type: keyof TypeMap
 
 			public readonly uid = Util.genUID()
-
 			/** Required components */
 			protected readonly _required: (keyof TypeMap)[] = []
 
@@ -428,6 +427,7 @@ namespace Luna {
 		/** Hit field component */
 		export abstract class HitFieldComponent extends Component {
 			public static readonly type: keyof TypeMap = "HitField"
+
 			protected readonly _required: (keyof TypeMap)[] = ["Transform"]
 
 			/**
@@ -438,33 +438,6 @@ namespace Luna {
 				super(parent)
 			}
 
-			public get type() {
-				return HitFieldComponent.type
-			}
-			/** Type of hit field */
-			public get fieldType(): keyof HitField {
-				return null
-			}
-			/** Component parent's position property */
-			protected get _position() {
-				return this._parent.getComponent("Transform").position
-			}
-			/** Component parent's rotation property */
-			protected get _rotation() {
-				return this._parent.getComponent("Transform").rotation
-			}
-
-			/**
-			 * Checks for a collision with another field
-			 * @param field Other hit field
-			 */
-			public checkCollision(field: HitFieldComponent): HitInformation {
-				if (this instanceof CircleHitFieldComponent && field instanceof CircleHitFieldComponent) return HitFieldComponent.collideBC(this, field)
-				if (this instanceof CircleHitFieldComponent && field instanceof RectangleHitFieldComponent) return HitFieldComponent.collideBCToBB(this, field)
-				if (this instanceof RectangleHitFieldComponent && field instanceof CircleHitFieldComponent) return HitFieldComponent.collideBBToBC(this, field)
-				if (this instanceof RectangleHitFieldComponent && field instanceof RectangleHitFieldComponent) return HitFieldComponent.collideBB(this, field)
-				return null
-			}
 			/**
 			 * Checks for a collision between two rectangular fields
 			 * @param fieldA First field
@@ -538,6 +511,34 @@ namespace Luna {
 					object: info.object,
 				} as HitInformation
 			}
+
+			public get type() {
+				return HitFieldComponent.type
+			}
+			/** Type of hit field */
+			public get fieldType(): keyof HitField {
+				return null
+			}
+			/** Component parent's position property */
+			protected get _position() {
+				return this._parent.getComponent("Transform").position
+			}
+			/** Component parent's rotation property */
+			protected get _rotation() {
+				return this._parent.getComponent("Transform").rotation
+			}
+
+			/**
+			 * Checks for a collision with another field
+			 * @param field Other hit field
+			 */
+			public checkCollision(field: HitFieldComponent): HitInformation {
+				if (this instanceof CircleHitFieldComponent && field instanceof CircleHitFieldComponent) return HitFieldComponent.collideBC(this, field)
+				if (this instanceof CircleHitFieldComponent && field instanceof RectangleHitFieldComponent) return HitFieldComponent.collideBCToBB(this, field)
+				if (this instanceof RectangleHitFieldComponent && field instanceof CircleHitFieldComponent) return HitFieldComponent.collideBBToBC(this, field)
+				if (this instanceof RectangleHitFieldComponent && field instanceof RectangleHitFieldComponent) return HitFieldComponent.collideBB(this, field)
+				return null
+			}
 		}
 		/** Circular hit field component */
 		export class CircleHitFieldComponent extends HitFieldComponent {
@@ -572,6 +573,7 @@ namespace Luna {
 		/** Texture component */
 		export class TextureComponent extends Component implements Renderable {
 			public static readonly type: keyof TypeMap = "Texture"
+
 			protected readonly _required: (keyof TypeMap)[] = ["Transform"]
 
 			/** Texture image */
@@ -732,8 +734,8 @@ namespace Luna {
 		export class Camera extends GameObject {
 			/** Active camera */
 			public static active: Camera
-			public uid = Util.genUID()
 
+			public readonly uid = Util.genUID()
 			/** Camera offset */
 			protected _offset = Vector.zero
 
@@ -840,6 +842,7 @@ namespace Luna {
 		export const updateQueue = new Class.Queue<Updatable>()
 		/** Queue of items to be rendered */
 		export const renderQueue = new Class.Queue<Renderable>()
+
 		/** Canvas element */
 		export let canvas: HTMLCanvasElement
 		/** Rendering contenxt */
