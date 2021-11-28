@@ -77,6 +77,7 @@ namespace Luna {
 			HitField: HitFieldComponent
 			Texture: TextureComponent
 			Animation: AnimationComponent
+			Sound: SoundComponent
 		}
 		/** List of all valid hit field types */
 		export enum HitField {
@@ -704,6 +705,58 @@ namespace Luna {
 				if (this._frameUpdate.active) {
 					if (++this._currentFrame >= this._frameCount) this._currentFrame -= this._frameCount
 				}
+			}
+		}
+		/** Sound component */
+		export class SoundComponent extends Component {
+			public static readonly type: keyof ComponentMap = "Sound"
+			/** Loaded and registered sounds */
+			protected _soundQueue: Map<string, HTMLAudioElement> = new Map()
+
+			/**
+			 * Creates a new sound component
+			 * @param parent Parent game object
+			 */
+			public constructor(parent: GameObject) {
+				super(parent)
+			}
+
+			public get type() {
+				return SoundComponent.type
+			}
+
+			/** @param parent Parent game object */
+			public copy(parent = this._parent) {
+				return new SoundComponent(parent)
+			}
+			/**
+			 * Loads an audio resource
+			 * @param id Audio identifier, should be unique
+			 * @param source Audio source, path to the sound file
+			 * @param overwrite Whether to overwrite an entry if present
+			 */
+			public load(id: string, source: string, overwrite = false) {
+				if (this._soundQueue.has(id) && !overwrite) return
+
+				const elem = document.createElement("audio")
+				elem.src = source
+				elem.load()
+
+				this._soundQueue.set(id, elem)
+				return id
+			}
+			/** Plays a sound with the given identifier */
+			public async play(id: string) {
+				if (!this._soundQueue.has(id)) return
+				else await this._soundQueue.get(id).play()
+			}
+			/** Unloads a sound entry (and removes it from the map) */
+			public unload(id: string) {
+				return this._soundQueue.delete(id)
+			}
+			/** Unloads and clears the sound map */
+			public unloadAll() {
+				this._soundQueue.clear()
 			}
 		}
 
