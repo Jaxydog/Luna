@@ -3,7 +3,7 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 namespace Luna {
 	/** Defines a class that can be updated */
-	export interface Updatable {
+	interface Updatable {
 		/**
 		 * Updates the object
 		 * @param delta Time since last frame
@@ -11,7 +11,7 @@ namespace Luna {
 		update(delta: number): Promise<unknown>
 	}
 	/** Defines a class that can be rendered */
-	export interface Renderable {
+	interface Renderable {
 		/**
 		 * Renders the object
 		 * @param delta Time since last frame
@@ -19,12 +19,18 @@ namespace Luna {
 		render(delta: number): Promise<unknown>
 	}
 	/** Defines hit information */
-	export interface HitInformation {
+	interface HitInformation {
+		/** Whether a collision was detected */
 		hit: boolean
+		/** Whether the collision occured on the top of the hitbox */
 		top: boolean
+		/** Whether the collision occured on the left of the hitbox */
 		left: boolean
+		/** Whether the collision occured on the right of the hitbox */
 		right: boolean
+		/** Whether the collision occured on the bottom of the hitbox */
 		bottom: boolean
+		/** The object that collided with the instance */
 		object?: Class.GameObject
 	}
 
@@ -37,9 +43,11 @@ namespace Luna {
 
 		/** Generates a new unique identifier using `crypto` */
 		export function genUID(): UID {
+			// generates 4 unsigned 16-bit integers, each having a max length of 5 characters
 			const numbers = crypto.getRandomValues(new Uint16Array(4))
+			// pad all generated numbers to fit 5 characters
 			const strings = Array.from(numbers).map((n) => `${n}`.padStart(5, "0"))
-
+			// return the newly generated UID
 			return strings.join("-") as UID
 		}
 		/**
@@ -48,6 +56,7 @@ namespace Luna {
 		 * @returns Timer
 		 */
 		export function sleep(ms = 0) {
+			// some async/await promise-based magic 😎
 			return new Promise((r) => setTimeout(r, ms))
 		}
 		/**
@@ -58,14 +67,14 @@ namespace Luna {
 		 * @param source Caller source
 		 */
 		export function error(name: string, reason: string, trace?: string, source = "Luna") {
+			// create an error with the given values
 			const err = new Error()
 			err.name = name
 			err.message = reason
 			err.stack = trace
 
-			Event.dispatch("error", { name, reason, source, trace })
-
-			Process.stop(1)
+			// trigger the error event and throw the error
+			Event.dispatch("Error", { name, reason, source, trace })
 			throw err
 		}
 	}
@@ -92,6 +101,7 @@ namespace Luna {
 
 			/** Returns a string representation of the instance */
 			public toString() {
+				// stringifies and converts the instance to JSON and returns the new string
 				return JSON.stringify(this, null, "\t")
 			}
 		}
@@ -106,6 +116,7 @@ namespace Luna {
 			 * @returns New queue
 			 */
 			public static from<C>(...items: C[]) {
+				// creates a queue and adds all of the input items
 				const queue = new Queue<C>()
 				items.forEach((item) => queue.request(item))
 				return queue
@@ -118,6 +129,7 @@ namespace Luna {
 			 * @returns Item ID
 			 */
 			public request(item: C, uid = item instanceof LunaClass ? item.uid : Util.genUID()) {
+				// adds an item, generating the uid if not provided
 				this.__list.set(uid, item)
 				return uid
 			}
@@ -127,10 +139,12 @@ namespace Luna {
 			 * @returns Whether the item could be removed
 			 */
 			public remove(uid: Util.UID) {
+				// direct map function passthrough
 				return this.__list.delete(uid)
 			}
 			/** Clears the queue */
 			public clear() {
+				// direct map function passthrough
 				this.__list.clear()
 			}
 			/**
@@ -138,6 +152,7 @@ namespace Luna {
 			 * @param id Item ID
 			 */
 			public hasUID(uid: Util.UID) {
+				// direct map function passthrough
 				return this.__list.has(uid)
 			}
 			/**
@@ -145,7 +160,9 @@ namespace Luna {
 			 * @param item Item
 			 */
 			public getUID(item: C) {
+				// searches for the given item within the queue
 				const index = this.array().indexOf(item)
+				// returns its uid, derived from the index of the item
 				return Array.from(this.__list.keys())[index]
 			}
 			/**
@@ -153,10 +170,12 @@ namespace Luna {
 			 * @param item Item
 			 */
 			public hasItem(item: C) {
+				// cheks the queue for the given item
 				return this.array().includes(item)
 			}
 			/** Retrieves the queue contents */
 			public array() {
+				// creates an array from the values of the queue
 				return Array.from(this.__list.values())
 			}
 			/**
@@ -164,6 +183,7 @@ namespace Luna {
 			 * @param callback Callback function
 			 */
 			public forEach(callback: (entry: C, uid: Util.UID) => unknown) {
+				// direct map function passthrough with engine bindings
 				this.__list.forEach(callback)
 			}
 		}
@@ -187,10 +207,15 @@ namespace Luna {
 			 * @param val Value to add
 			 */
 			public update(val: number) {
+				// update value
 				this.__current += val
-				if (this.active) this.active = false
+				// ensure active toggle is false
+				this.active = false
+				// check for target value
 				if (this.__current >= this.target) this.active = true
+				// keep value below target
 				while (this.__current >= this.target) this.__current -= this.target
+				// this effectively ensures that active will only be true for one tick
 			}
 		}
 		/** Vector class */
@@ -201,21 +226,25 @@ namespace Luna {
 			/** Creates a new vector */
 			public constructor(...values: Util.FixedArray<D, number>) {
 				super()
+				// convert from fixed array to regular array for storage; typescript gets angry when trying to modify fixed arrays
 				this._values = Array.from(values)
 			}
 
 			/** A vector containing only zeroes */
 			public static zero(dimensions: number) {
+				// default values are always zero
 				return new Vector<typeof dimensions>(0)
 			}
 			/** A vector containing only ones */
 			public static unit(dimensions: number) {
+				// sets all of the values to 1 rather than the default, 0
 				const vec = new Vector<typeof dimensions>(1)
 				vec._values.map(() => 1)
 				return vec
 			}
 			/** Calculates the distance between two vectors */
 			public static distance<D extends number>(vecA: Vector<D>, vecB: Vector<D>) {
+				// use vector functions to calculate distance
 				const temp = vecB
 					.copy()
 					.subtract(...vecA.values)
@@ -225,28 +254,34 @@ namespace Luna {
 
 			/** Number of vector dimensions */
 			public get dimensions() {
+				// returns number of values, or zero if the instance somehow doesn't have any
 				return this._values.length ?? 0
 			}
 			/** Values of the vector */
 			public get values() {
+				// creates a copy to prevent external mutation
 				return Array.from(this._values)
 			}
 			/** Values of the vector */
 			public set values(value: number[]) {
+				// ensures that the vector always has the proper amount of values
 				const arr = value.slice(0, this.dimensions)
 				while (arr.length < this.dimensions) arr.push(0)
 				this._values = arr
 			}
 			/** Magnitude of the vector */
 			public get magnitude() {
+				// based on magnitude equation (i.e. sqrt of x^2 + y^2 in the case of a 2d vector)
 				const n = this.copy().power(2).values
 				return Math.sqrt(n.reduce((p, c) => p + c))
 			}
 			/** Normal of the vector */
 			public get normal() {
 				const m = this.magnitude
+				// prevents division by zero
 				if (m === 0) return this
 				else {
+					// divide all values by the magnitude to normalize the vector
 					const temp = this.copy()
 					temp._values.map((n) => n / m)
 					return temp
@@ -255,50 +290,60 @@ namespace Luna {
 
 			/** Converts the vector to a new vector of the given size */
 			public cast(dimensions: number) {
+				// excess values are ignored and if not enough values are provided the remaining numbers will be filled with 0's
 				return new Vector<typeof dimensions>(...(this._values as Util.FixedArray<D, number>))
 			}
 			/** Adds the given numbers to the vector; excess values are discarded */
 			public add(...values: number[]) {
+				// adds 0 if a corresponding value is not provided
 				this._values = this._values.map((n, i) => (n += values[i] ?? 0))
 				return this
 			}
 			/** Subtracts the given numbers to the vector; excess values are discarded */
 			public subtract(...values: number[]) {
+				// extension of addition function
 				return this.add(...values.map((n) => -n))
 			}
 			/** Multiplies the values of the vector by the given numbers; excess values are discarded */
 			public multiply(...values: number[]) {
+				// multiplies by 1 if values are not provided
 				this._values = this._values.map((n, i) => (n *= values[i] ?? 1))
 				return this
 			}
 			/** Divides the values of the vector by the given numbers; excess value are discarded */
 			public divide(...values: number[]) {
+				// extension of the multiplication function
 				return this.multiply(...values.map((n) => 1 / n))
 			}
 			/** Raises the values of the vector to the given power */
 			public power(power: number) {
+				// raises all numbers to the same pwoer
 				this._values = this._values.map((n) => n ** power)
 				return this
 			}
 			/** Determines the nth root of the vector's values */
 			public root(root: number) {
+				// extension of the power function
 				return this.power(1 / root)
 			}
 			/** Checks whether the vector's values match the input */
 			public matches(...values: Util.FixedArray<D, number>) {
-				return this._values.every((n, i) => n === values[i])
+				// checks for equality between the args and the values of the array, defaulting to true if args are not provided
+				return this._values.every((n, i) => n === (values[i] ?? n))
 			}
 			/** Checks whether the given vector is equivalent to the vector instance */
 			public equals(vector: Vector<D>) {
+				// extension of matches function to allow a vector input
 				return this.matches(...(vector._values as Util.FixedArray<D, number>))
 			}
 			/** Creates a copy of the instance */
 			public copy() {
+				// converts vector values to fixed array
 				return new Vector<D>(...(this._values as Util.FixedArray<D, number>))
 			}
 		}
 		/** Rotation class */
-		export class Rotation {
+		export class Rotation extends LunaClass {
 			/** Minimum rotation in degrees */
 			public static readonly minDeg = 0
 			/** Maximum rotation in degrees */
@@ -308,7 +353,8 @@ namespace Luna {
 			/** Maximum rotation in radians */
 			public static readonly maxRad = Rotation.toRadians(Rotation.maxDeg)
 
-			/** Object rotation, stored as degrees for better accuracy */
+			// stored as degrees rather than radians to avoid floating point errors, improving accuracy
+			/** Object rotation */
 			private __rotation: number
 
 			/**
@@ -316,6 +362,7 @@ namespace Luna {
 			 * @param value Rotation in degrees
 			 */
 			public constructor(value = 0) {
+				super()
 				this.__rotation = value
 			}
 
@@ -325,6 +372,7 @@ namespace Luna {
 			}
 			/** Converts degrees to radians */
 			public static toRadians(value: number) {
+				// opposite of toDegrees
 				return (value * Math.PI) / 180
 			}
 			/**
@@ -334,10 +382,13 @@ namespace Luna {
 			 * @param angle Angle in radians
 			 */
 			public static rotatePoint(point: Vector<2>, origin: Vector<2>, angle: number) {
+				// uses trig shit to rotate a point around the given origin
 				const offsetX = point.values[0] - origin.values[0]
 				const offsetY = point.values[1] - origin.values[1]
+				// main calculation to rotate point
 				const pointX = offsetX * Math.cos(angle) - offsetY * Math.sin(angle) + origin.values[0]
 				const pointY = offsetX * Math.sin(angle) - offsetY * Math.cos(angle) + origin.values[1]
+				// creates a new 2d vector
 				return new Vector(pointX, pointY)
 			}
 
@@ -347,22 +398,20 @@ namespace Luna {
 			}
 			/** Value of the rotation in degrees */
 			public set degrees(val: number) {
+				// clamps value to minimum and maximum values
 				while (val >= Rotation.maxDeg) val -= Rotation.maxDeg
 				while (val < Rotation.minDeg) val += Rotation.maxDeg
 				this.__rotation = val
 			}
 			/** Value of the rotation in radians */
 			public get radians() {
+				// convert to radians since value is stored as degrees
 				return Rotation.toRadians(this.__rotation)
 			}
 			/** Value of the rotation in radians */
 			public set radians(val: number) {
+				// extends the degree setter, just supplying a converted value
 				this.degrees = Rotation.toDegrees(val)
-			}
-
-			/** Converts the rotation to a string */
-			public toString() {
-				return JSON.stringify(this, null, "\t")
 			}
 		}
 
@@ -380,8 +429,12 @@ namespace Luna {
 			 */
 			public constructor(protected _parent: GameObject) {
 				super()
+				// check parent for required components
 				for (const component of this._required) {
-					if (!_parent.hasComponent(component)) Util.error("Missing required component", `Parent object must contain '${component}'`)
+					if (!_parent.hasComponent(component)) {
+						Util.error("Missing required component", `Parent object must contain '${component}'`)
+						return null
+					}
 				}
 			}
 
@@ -392,11 +445,11 @@ namespace Luna {
 
 			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			public async update(delta: number) {
-				/* */
+				// intentionally unimplemented
 			}
 			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			public async render(delta: number) {
-				/* */
+				// intentionally unimplemented
 			}
 			/** Checks whether the given game object is the component's parent */
 			public isChildOf(parent: GameObject) {
@@ -404,6 +457,7 @@ namespace Luna {
 			}
 			/** Creates a copy of the component */
 			public copy(parent = this._parent): Component {
+				// just returns self due to class abstraction; should be modified in subclasses
 				this._parent = parent
 				return this
 			}
@@ -451,14 +505,17 @@ namespace Luna {
 			 * @param fieldB Second field
 			 */
 			protected static collideBB(fieldA: RectangleHitFieldComponent, fieldB: RectangleHitFieldComponent) {
-				const { [0]: widthA, [1]: heightA } = fieldA.size.copy().divide(2, 2).values
+				// separate out positions and sizes
 				const { [0]: xPosA, [1]: yPosA } = fieldA._position.values
-				const { [0]: widthB, [1]: heightB } = fieldB.size.copy().divide(2, 2).values
 				const { [0]: xPosB, [1]: yPosB } = fieldB._position.values
+				const { [0]: widthA, [1]: heightA } = fieldA.size.copy().divide(2, 2).values
+				const { [0]: widthB, [1]: heightB } = fieldB.size.copy().divide(2, 2).values
 
+				// check for collision
 				const x = xPosA <= xPosB + widthB && xPosA + widthA >= xPosB
 				const y = yPosA <= yPosB + heightB && yPosB + heightA >= yPosB
 
+				// return whether there was a collision, plus additional information
 				return {
 					hit: x && y,
 					left: x && xPosA < xPosB,
@@ -474,9 +531,12 @@ namespace Luna {
 			 * @param fieldB Second field
 			 */
 			protected static collideBC(fieldA: CircleHitFieldComponent, fieldB: CircleHitFieldComponent) {
+				// fetch positions
 				const positionA = fieldA._position
 				const positionB = fieldB._position
+				// check for collision
 				const hit = Vector.distance(positionA, positionB) <= fieldA.radius + fieldB.radius
+				// return whether there was a collision, plus additional information
 				return { hit, object: hit ? fieldB._parent : undefined } as HitInformation
 			}
 			/**
@@ -485,13 +545,17 @@ namespace Luna {
 			 * @param fieldB Circular field
 			 */
 			protected static collideBBToBC(fieldA: RectangleHitFieldComponent, fieldB: CircleHitFieldComponent) {
+				// separate out positions and sizes
 				const { [0]: width, [1]: height } = fieldA.size.values
 				const { [0]: xPosA, [1]: yPosA } = fieldA._position.values
 				const { [0]: xPosB, [1]: yPosB } = fieldB._position.values
+				// clamp values
 				const x = Math.max(xPosA, Math.min(xPosB, xPosA + width))
 				const y = Math.max(yPosA, Math.min(yPosB, yPosA + height))
+				// check for collision
 				const hit = Vector.distance(new Vector(x, y), new Vector(xPosB, yPosB)) < fieldB.radius
 
+				// return whether there was a collision, plus additional information
 				return {
 					hit,
 					left: hit && xPosB < xPosA,
@@ -507,8 +571,10 @@ namespace Luna {
 			 * @param fieldB Rectangular field
 			 */
 			protected static collideBCToBB(fieldA: CircleHitFieldComponent, fieldB: RectangleHitFieldComponent) {
+				// check for collision
 				const info = this.collideBBToBC(fieldB, fieldA)
 
+				// invert sides and return data
 				return {
 					hit: info.hit,
 					left: info.right,
@@ -540,11 +606,19 @@ namespace Luna {
 			 * @param field Other hit field
 			 */
 			public checkCollision(field: HitFieldComponent): HitInformation {
-				if (this instanceof CircleHitFieldComponent && field instanceof CircleHitFieldComponent) return HitFieldComponent.collideBC(this, field)
-				if (this instanceof CircleHitFieldComponent && field instanceof RectangleHitFieldComponent) return HitFieldComponent.collideBCToBB(this, field)
-				if (this instanceof RectangleHitFieldComponent && field instanceof CircleHitFieldComponent) return HitFieldComponent.collideBBToBC(this, field)
-				if (this instanceof RectangleHitFieldComponent && field instanceof RectangleHitFieldComponent) return HitFieldComponent.collideBB(this, field)
-				return null
+				// initalize hit information
+				let out: HitInformation = null
+
+				// check for collision depending on types
+				if (this instanceof CircleHitFieldComponent && field instanceof CircleHitFieldComponent) out = HitFieldComponent.collideBC(this, field)
+				if (this instanceof CircleHitFieldComponent && field instanceof RectangleHitFieldComponent) out = HitFieldComponent.collideBCToBB(this, field)
+				if (this instanceof RectangleHitFieldComponent && field instanceof CircleHitFieldComponent) out = HitFieldComponent.collideBBToBC(this, field)
+				if (this instanceof RectangleHitFieldComponent && field instanceof RectangleHitFieldComponent) out = HitFieldComponent.collideBB(this, field)
+
+				// dispatch event on collide
+				if (out?.hit) Event.dispatch("Collision", { hit: out, objA: this._parent, objB: field._parent })
+				// return hit information
+				return out
 			}
 		}
 		/** Circular hit field component */
@@ -632,10 +706,14 @@ namespace Luna {
 			}
 			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			public async render(delta: number) {
+				// ensure render size is visible
 				if (this._renderSize.values[0] === 0 || this._renderSize.values[1] === 0) return
+				// ensure source size is visible
 				if (this._image.width === 0 || this._image.height === 0) return
+				// check for culling
 				if (Camera.active?.shouldCull(new RectangleHitFieldComponent(this._parent, this._renderSize))) return
 
+				// attempt render
 				try {
 					Process.context?.drawImage(this._image, this._position.values[0], this._position.values[1], this._renderSize.values[0], this._renderSize.values[1])
 				} catch {
@@ -661,10 +739,15 @@ namespace Luna {
 			 * @param size Image size
 			 * @param frameCount Number of frames
 			 */
-			public constructor(parent: GameObject, source: string, size: Vector<2>, protected _frameCount: number) {
+			public constructor(parent: GameObject, source: string, size: Vector<2>, protected _frameCount: number, protected _frameRate = 30) {
 				super(parent, source, size)
-				this._frameSize = size.copy().divide(1, _frameCount)
+				// set frame size determined by frame count
+				this._frameSize = size.copy().divide(1, this._frameCount)
+				// floors frame size values
 				this._frameSize.values = this._frameSize.values.map((n) => Math.floor(n))
+				// set frame update interval
+				this._frameUpdate = new Interval(this._frameRate)
+				// set render size to frame size
 				this._renderSize = this._frameSize
 			}
 
@@ -680,28 +763,39 @@ namespace Luna {
 				this._renderSize = this._frameSize
 			}
 			public async render(delta: number) {
+				// check for frame update
 				this._updateFrame(delta)
 
+				// ensure render size is visible
 				if (this._renderSize.values[0] === 0 || this._renderSize.values[1] === 0) return
+				// ensure frame size is visible
 				if (this._frameSize.values[0] === 0 || this._frameSize.values[1] === 0) return
+				// check for culling
 				if (Camera.active?.shouldCull(new RectangleHitFieldComponent(this._parent, this._renderSize))) return
 
-				Process.context?.drawImage(
-					this._image,
-					this._frameSize.values[0] * this._currentFrame,
-					0,
-					this._frameSize.values[0],
-					this._frameSize.values[1],
-					this._position.values[0],
-					this._position.values[1],
-					this._renderSize.values[0],
-					this._renderSize.values[1]
-				)
+				// attempt render
+				try {
+					Process.context?.drawImage(
+						this._image,
+						this._frameSize.values[0] * this._currentFrame,
+						0,
+						this._frameSize.values[0],
+						this._frameSize.values[1],
+						this._position.values[0],
+						this._position.values[1],
+						this._renderSize.values[0],
+						this._renderSize.values[1]
+					)
+				} catch {
+					Util.error("Unable to render asset", "Image could not be rendered")
+				}
 			}
 			/** Checks for a frame change */
 			protected _updateFrame(delta: number) {
+				// update interval
 				this._frameUpdate.update(delta)
 
+				// update frame if active
 				if (this._frameUpdate.active) {
 					if (++this._currentFrame >= this._frameCount) this._currentFrame -= this._frameCount
 				}
@@ -736,26 +830,40 @@ namespace Luna {
 			 * @param overwrite Whether to overwrite an entry if present
 			 */
 			public load(id: string, source: string, overwrite = false) {
+				// prevent overwriting
 				if (this._soundQueue.has(id) && !overwrite) return
 
+				// create new audio element and load asset
 				const elem = document.createElement("audio")
 				elem.src = source
 				elem.load()
 
+				// add to queue
 				this._soundQueue.set(id, elem)
+				// dispatch event
+				Event.dispatch("SoundLoad", { id, path: source })
+				// return queue id
 				return id
 			}
 			/** Plays a sound with the given identifier */
 			public async play(id: string) {
+				// check for sound
 				if (!this._soundQueue.has(id)) return
-				else await this._soundQueue.get(id).play()
+				// dispatch event
+				Event.dispatch("SoundPlay", { id, length: this._soundQueue.get(id).duration })
+				// play sound
+				await this._soundQueue.get(id).play()
+				// dispatch event
+				Event.dispatch("SoundStop", { id })
 			}
 			/** Unloads a sound entry (and removes it from the map) */
 			public unload(id: string) {
+				// expose inner functionality
 				return this._soundQueue.delete(id)
 			}
 			/** Unloads and clears the sound map */
 			public unloadAll() {
+				// expose inner functionality
 				this._soundQueue.clear()
 			}
 		}
@@ -771,38 +879,41 @@ namespace Luna {
 			 */
 			public constructor(...components: Component[]) {
 				super()
+				// initialize components map
 				this.__components = new Map()
 				components.forEach(this.addComponent)
 			}
 
 			public async update(delta: number) {
+				// update components
 				this.__components.forEach(async (component) => await component.update(delta))
 			}
 			public async render(delta: number) {
+				// render components
 				this.__components.forEach(async (component) => await component.render(delta))
 			}
 			/** Checks for a component */
 			public hasComponent(type: keyof ComponentMap) {
+				// create array from components and check for inclusion
 				return Array.from(this.__components.values()).some((component) => component.type === type)
 			}
 			/** Fetches a component; if a uid is not provided returns the first instance of the requested component */
 			public getComponent<T extends keyof ComponentMap>(type: T, uid?: Util.UID) {
+				// if no uid provided, return first instance, otherwise return the requested component
 				if (uid) return this.__components.get(uid) as ComponentMap[T]
 				else return Array.from(this.__components.values()).find((component) => component.type === type) as ComponentMap[T]
 			}
 			/** Adds a component to the game object */
 			public addComponent<T extends keyof ComponentMap>(component: ComponentMap[T]) {
+				// check for component parent equality
 				const temp = !component.isChildOf(this) ? component.copy(this) : component
+				// add component and return id
 				this.__components.set(temp.uid, temp)
 				return temp.uid
 			}
 			/** Creates a copy of the game object */
 			public copy() {
 				return new GameObject(...this.__components.values())
-			}
-			/** Returns a string representation of the game object */
-			public toString() {
-				return JSON.stringify(this, null, "\t")
 			}
 		}
 		/** Camera class */
@@ -823,7 +934,9 @@ namespace Luna {
 			 */
 			public constructor(position: Vector<2>, rotation: Rotation) {
 				super()
+				// create transform component
 				this.addComponent(new TransformComponent(this, position, rotation))
+				// create hitfield component for use in culling
 				this.addComponent(new RectangleHitFieldComponent(this, new Vector(Process.canvas.width, Process.canvas.height)))
 			}
 
@@ -838,19 +951,23 @@ namespace Luna {
 
 			/** Checks whether a body should be rendered */
 			public shouldCull(field: HitFieldComponent) {
+				// effectively just checks for a hitfield collision
 				return !this._hitField.checkCollision(field).hit
 			}
 			/** Resizes the camera view */
 			public resize(vector: Vector<2>) {
+				// resize hitfield
 				// eslint-disable-next-line @typescript-eslint/no-extra-semi
 				;(this.getComponent("HitField") as RectangleHitFieldComponent).size = vector
 			}
 			/** Sets the camera's zoom */
 			public zoom(x = 1, y = 1) {
+				// multiply zoom by vector
 				this._zoom.multiply(x, y)
 			}
 			/** Sets the camera's position */
 			public focusTo(x = this._transform.position.values[0], y = this._transform.position.values[1]) {
+				// set camera position to the given values
 				this._offset.values = [x, y]
 			}
 			/** Rotates the camera */
@@ -863,10 +980,14 @@ namespace Luna {
 	export namespace Event {
 		/** Defines event contents */
 		export interface EventMap {
-			start: { vsync: boolean }
-			stop: { code: number; frame: number }
-			frame: { delta: number; frame: number }
-			error: { name: string; reason: string; source: string; trace?: string }
+			Start: { vsync: boolean }
+			Stop: { code: number; frame: number }
+			Frame: { delta: number; frame: number }
+			Error: { name: string; reason: string; source: string; trace?: string }
+			Collision: { objA: Class.GameObject; objB: Class.GameObject; hit: HitInformation }
+			SoundLoad: { id: string; path: string }
+			SoundPlay: { id: string; length: number }
+			SoundStop: { id: string }
 		}
 		/** Creates a new event */
 		export interface Constructor<E extends keyof EventMap> {
@@ -892,6 +1013,7 @@ namespace Luna {
 		export function dispatch<E extends keyof EventMap>(name: E, contents: EventMap[E], source = "Luna") {
 			// ensures event callbacks exist
 			if (!events.has(name)) return
+			// create event
 			const event = { contents, name, source, time: performance.now() } as Constructor<E>
 			// all callbacks are given the same event object
 			events.get(name).forEach((value) => value(event))
@@ -905,7 +1027,9 @@ namespace Luna {
 		export function addListener<E extends keyof EventMap>(name: E, callback: Callback<E>) {
 			// ensure event queue exists
 			const queue = events.get(name) ?? new Class.Queue<Callback<keyof EventMap>>()
+			// add callback to queue
 			const uid = queue.request(callback)
+			// update event queue
 			events.set(name, queue)
 			// return uid in case the listener is removed later
 			return uid
@@ -919,12 +1043,17 @@ namespace Luna {
 		export function removeListener<E extends keyof EventMap>(name: E, uid: Util.UID) {
 			let removed = false
 
+			// check for event queue
 			if (events.has(name)) {
+				// fetch all callbacks
 				const queue = events.get(name)
+				// remove callback
 				removed = queue.remove(uid)
+				// update callback queue
 				events.set(name, queue)
 			}
 
+			// return whether the listener was removed
 			return removed
 		}
 	}
@@ -946,38 +1075,53 @@ namespace Luna {
 
 		/** Initializes the engine */
 		export function init() {
+			// fetch canvas and rendering context
 			canvas = document.querySelector("canvas")
 			context = canvas?.getContext("2d")
+			// throw error if canvas or context are invalid
 			if (!canvas) Util.error("Error initializing", "Unable to load canvas element")
 			if (!context) Util.error("Error initializing", "Unable to fetch rendering context")
+			// automatically resize canvas
 			autoResize()
+			// initialize camera
 			Class.Camera.active = new Class.Camera(new Class.Vector(0, 0), new Class.Rotation(0))
+			// add camera to render queue
 			renderQueue.request(Class.Camera.active)
+			// start engine
 			start()
 		}
 		/** Resets internal variables */
 		export function reset() {
+			// reset frame values
 			frame.current = 0
 			frame.id = 0
 			frame.last = 0
 			frame.vsync = false
+			// prevent engine from running
 			running = false
 		}
 		/** Automatically resize the canvas */
 		export function autoResize() {
+			// fetch window size
 			const { clientWidth: docWidth, clientHeight: docHeight } = document.documentElement
 
+			// check for matching sizes
 			if (canvas.width === docWidth && canvas.height === docHeight) return
 
+			// update canvas size
 			canvas.setAttribute("width", `${docWidth}px`)
 			canvas.setAttribute("height", `${docHeight}px`)
 
+			// resize camera
 			Class.Camera.active?.resize(new Class.Vector(docWidth, docHeight))
 		}
 		/** Requests a new frame */
 		export async function callFrame() {
+			// exit if engine is not running
 			if (!running) return
+			// update frame and request next frame if vsync is enabled
 			if (frame.vsync) frame.id = requestAnimationFrame(run)
+			// otherwise, run frame immediately
 			else {
 				// stops thread from halting
 				await Util.sleep()
@@ -986,8 +1130,10 @@ namespace Luna {
 		}
 		/** Begins the engine process */
 		export function start() {
+			// dispatch start event and start engine
 			running = true
-			Event.dispatch("start", { vsync: frame.vsync })
+			Event.dispatch("Start", { vsync: frame.vsync })
+			// call first frame
 			callFrame()
 		}
 		/**
@@ -995,8 +1141,11 @@ namespace Luna {
 		 * @param code Stop code
 		 */
 		export function stop(code = 0) {
+			// cancel all pending frames
 			if (frame.vsync) cancelAnimationFrame(frame.id)
-			Event.dispatch("stop", { code, frame: frame.current })
+			// dispatch stop event
+			Event.dispatch("Stop", { code, frame: frame.current })
+			// reset engine state
 			reset()
 		}
 		/**
@@ -1006,6 +1155,7 @@ namespace Luna {
 		export async function run(time: number) {
 			// stops frames from being processed if the engine is considered stopped
 			if (!running) return
+			// auto-resize canvas
 			autoResize()
 
 			// calculates the time that has passed since the last frame
@@ -1013,15 +1163,21 @@ namespace Luna {
 			frame.last = time
 			frame.current++
 
+			// update all updatables
 			updateQueue.forEach(async (entry) => await entry.update(delta))
 
+			// rneder all renderables
 			context.beginPath()
 			context.clearRect(0, 0, canvas.width, canvas.height)
 			renderQueue.forEach(async (entry) => await entry.render(delta))
 			context.closePath()
 
-			Event.dispatch("frame", { delta, frame: frame.current })
+			// dispatch frame event
+			Event.dispatch("Frame", { delta, frame: frame.current })
+			// request next frame
 			await callFrame()
 		}
 	}
 }
+
+// TODO - test 'required' functionality in components
